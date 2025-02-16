@@ -1,100 +1,102 @@
-import numpy as np
+"Homework 3 attempt"
+import math
 
 
-def is_symmetric(matrix):
-    """Check if a matrix is symmetric."""
-    return np.allclose(matrix, matrix.T)
+def t_distribution_pdf(x, m):
+    """
+    Probability density function of the t-distribution.
+
+    :param x: The value at which to evaluate the PDF.
+    :param m: Degrees of freedom.
+    :return: The value of the PDF at x.
+    """
+    if m <= 0:
+        raise ValueError("Degrees of freedom must be positive.")
+
+    return (math.gamma((m + 1) / 2) /
+            (math.sqrt(m * math.pi) * math.gamma(m / 2))) * (1 + (x ** 2) / m) ** (-(m + 1) / 2)
 
 
-def is_positive_definite(matrix):
-    """Check if a matrix is positive definite."""
-    try:
-        np.linalg.cholesky(matrix)
-        return True
-    except np.linalg.LinAlgError:
-        return False
+def compute_K_m(m):
+    """
+    Compute the normalization constant K_m for the t-distribution.
+
+    Args:
+        m (int): Degrees of freedom.
+
+    Returns:
+        float: The value of K_m.
+    """
+    if m <= 0:
+        raise ValueError("Degrees of freedom must be positive.")
+
+    return math.gamma((m + 1) / 2) / (math.sqrt(m * math.pi) * math.gamma(m / 2))
 
 
-def cholesky_solve(A, b):
-    """Solve Ax = b using Cholesky decomposition."""
-    L = np.linalg.cholesky(A)
+def trapezoidal_integration(func, a, b, *args, n=1000):
+    """
+    Perform numerical integration using the trapezoidal rule.
 
-    # Solve L * y = b
-    y = np.linalg.solve(L, b)
+    :param func: The function to integrate.
+    :param a: The lower limit of integration.
+    :param b: The upper limit of integration.
+    :param args: Additional arguments to pass to the function.
+    :param n: The number of trapezoids to use (default is 1000).
+    :return: The approximate integral of the function from a to b.
+    """
+    h = (b - a) / n
+    integral = 0.5 * (func(a, *args) + func(b, *args))
 
-    # Solve L.T * x = y
-    x = np.linalg.solve(L.T, y)
-    return x
+    for i in range(1, n):
+        integral += func(a + i * h, *args)
 
-
-def doolittle_solve(A, b):
-    """Solve Ax = b using Doolittle's LU decomposition."""
-    n = len(A)
-    L = np.zeros((n, n))
-    U = np.zeros((n, n))
-
-    for i in range(n):
-        # Upper triangular matrix U
-        for k in range(i, n):
-            sum1 = sum(L[i][j] * U[j][k] for j in range(i))
-            U[i][k] = A[i][k] - sum1
-
-        # Lower triangular matrix L
-        for k in range(i, n):
-            if i == k:
-                L[i][i] = 1  # Diagonal as 1
-            else:
-                sum2 = sum(L[k][j] * U[j][i] for j in range(i))
-                L[k][i] = (A[k][i] - sum2) / U[i][i]
-
-    # Solve L * y = b
-    y = np.zeros(n)
-    for i in range(n):
-        y[i] = (b[i] - sum(L[i][j] * y[j] for j in range(i)))
-
-    # Solve U * x = y
-    x = np.zeros(n)
-    for i in range(n - 1, -1, -1):
-        x[i] = (y[i] - sum(U[i][j] * x[j] for j in range(i + 1, n))) / U[i][i]
-
-    return x
+    return integral * h
 
 
-def get_matrices_and_vectors():
-    """Prompt user to input two matrices and vectors."""
-    matrices = []
-    vectors = []
-    for i in range(2):
-        print(f"Enter matrix A{i + 1}:")
-        n = int(input("Enter the size of the matrix: "))
-        print("Enter the matrix row by row, with space-separated values: example: 1 1 1 0 for row 1")
-        A = np.array([list(map(float, input().split())) for _ in range(n)])
-        print(f"Enter vector b{i + 1} (space-separated values):")
-        b = np.array(list(map(float, input().split())))
-        matrices.append(A)
-        vectors.append(b)
-    return matrices, vectors
+def t_distribution_cdf(z, m):
+    """
+    Compute the cumulative distribution function (CDF) of the t-distribution.
+
+    :param z: The value at which to evaluate the CDF.
+    :param m: Degrees of freedom.
+    :return: The CDF value at z.
+    """
+    if m <= 0:
+        raise ValueError("Degrees of freedom must be positive.")
+
+    lower_limit = -10  # A more reasonable limit instead of -1000
+    return trapezoidal_integration(t_distribution_pdf, lower_limit, z, m)
 
 
-def solve_system(A, b, problem_number):
-    print(f"Solving problem {problem_number}:")
-    if is_symmetric(A) and is_positive_definite(A):
-        print("Matrix is symmetric and positive definite. Using Cholesky method.")
-        x = cholesky_solve(A, b)
-    else:
-        print("Matrix is not symmetric positive definite. Using Doolittle method.")
-        x = doolittle_solve(A, b)
+def user_input_t_distribution():
+    """
+    Allow user to input degrees of freedom and z values for the t-distribution CDF.
+    """
+    print("This program computes the CDF of the t-distribution for given degrees of freedom and z values.")
 
-    print("Solution x:", x)
+    while True:
+        try:
+            # Get degrees of freedom from user
+            m = int(input("\nEnter degrees of freedom (positive integer): ").strip())
+            if m <= 0:
+                print("Degrees of freedom must be a positive integer. Try again.")
+                continue
 
+            # Get multiple z values as comma-separated input
+            z_values_input = input("Enter z values separated by commas (e.g., -1.5, 0, 1.5): ").strip()
+            z_values = [float(z.strip()) for z in z_values_input.split(",")]
 
-def main():
-    """Main function to check matrix properties and solve Ax = b for two problems."""
-    matrices, vectors = get_matrices_and_vectors()
-    for i in range(2):
-        solve_system(matrices[i], vectors[i], i + 1)
-        print("-")
+            print(f"\nDegrees of freedom (m): {m}")
+            for z in z_values:
+                cdf_value = t_distribution_cdf(z, m)
+                print(f"F(z={z:0.3f} | m={m}) = {cdf_value:0.6f}")
+
+            break  # Exit loop after successful computation
+
+        except ValueError:
+            print("Invalid input. Please enter numeric values correctly.")
 
 
 if __name__ == "__main__":
-    main()
+    user_input_t_distribution()
+
